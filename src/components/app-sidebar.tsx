@@ -5,12 +5,16 @@ import { usePathname } from "next/navigation";
 import {
   ArrowLeftRightIcon,
   BellIcon,
+  LandmarkIcon,
   LayoutDashboardIcon,
   SettingsIcon,
   ShieldCheckIcon,
   SparklesIcon,
+  TargetIcon,
+  TrendingUpIcon,
   UsersIcon,
   WalletIcon,
+  WandSparklesIcon,
 } from "lucide-react";
 
 import { SpaceSwitcher } from "@/components/space-switcher";
@@ -35,7 +39,14 @@ import { Badge } from "@/components/ui/badge";
 const NAV_MAIN = [
   { title: "Dashboard", href: "/app", icon: LayoutDashboardIcon },
   { title: "Contas", href: "/app/accounts", icon: WalletIcon },
+  { title: "Rendimentos", href: "/app/income", icon: TrendingUpIcon },
   { title: "Transações", href: "/app/transactions", icon: ArrowLeftRightIcon },
+];
+
+const NAV_PLANNING = [
+  { title: "Objetivos", href: "/app/goals", icon: TargetIcon },
+  { title: "Desejos", href: "/app/wants", icon: SparklesIcon },
+  { title: "Dívidas", href: "/app/debts", icon: LandmarkIcon },
 ];
 
 const NAV_SPACE = [
@@ -45,8 +56,8 @@ const NAV_SPACE = [
 ];
 
 const NAV_SOON = [
-  { title: "Objetivos", icon: ShieldCheckIcon },
-  { title: "Life Insights", icon: SparklesIcon },
+  { title: "Património", icon: ShieldCheckIcon },
+  { title: "Life Insights", icon: WandSparklesIcon },
 ];
 
 export function AppSidebar() {
@@ -67,6 +78,28 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {NAV_MAIN.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive(item.href)}
+                    tooltip={item.title}
+                  >
+                    <Link href={item.href}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Planeamento</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {NAV_PLANNING.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild

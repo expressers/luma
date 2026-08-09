@@ -4,9 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeftRightIcon,
+  LandmarkIcon,
   LayoutDashboardIcon,
   SearchIcon,
   SettingsIcon,
+  SparklesIcon,
+  TargetIcon,
+  TrendingUpIcon,
   UsersIcon,
   WalletIcon,
 } from "lucide-react";
@@ -27,7 +31,11 @@ import { formatMoney } from "@/lib/money";
 const PAGES = [
   { title: "Dashboard", href: "/app", icon: LayoutDashboardIcon },
   { title: "Contas", href: "/app/accounts", icon: WalletIcon },
+  { title: "Rendimentos", href: "/app/income", icon: TrendingUpIcon },
   { title: "Transações", href: "/app/transactions", icon: ArrowLeftRightIcon },
+  { title: "Objetivos", href: "/app/goals", icon: TargetIcon },
+  { title: "Desejos", href: "/app/wants", icon: SparklesIcon },
+  { title: "Dívidas", href: "/app/debts", icon: LandmarkIcon },
   { title: "Membros", href: "/app/members", icon: UsersIcon },
   { title: "Definições", href: "/app/settings/profile", icon: SettingsIcon },
 ];

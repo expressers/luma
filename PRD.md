@@ -48,11 +48,11 @@ Autenticação, Spaces, membros, convites, camada de autorização, design syste
 
 ### Fase 1 — Núcleo financeiro *(âmbito atual)*
 
-Contas financeiras, transações (rendimentos e despesas como transações), categorias, transferências entre contas, dashboard mínimo.
+Contas financeiras, transações, fontes de rendimento, categorias, transferências entre contas, dashboard mínimo.
 
 ### Fase 2 — Património e planeamento
 
-Dívidas, ativos, objetivos com contribuições, desejos, recorrências, cálculo de património líquido.
+Ativos, recorrências e cálculo de património líquido. Dívidas, objetivos com contribuições e desejos foram antecipados para o âmbito atual: partilham o modelo de visibilidade e as regras monetárias já definidas, e sem eles o dashboard não consegue responder à pergunta a que o produto se propõe.
 
 ### Fase 3 — Colaboração avançada
 
@@ -201,7 +201,7 @@ O schema do documento anterior não compilava. Registo do que mudou e porquê:
 | Sete modelos referenciados e nunca definidos (`Card`, `Income`, `Expense`, `Asset`, `Want`, `Document`, `ResourcePermission`) | Definidos ou movidos para fase posterior |
 | `Float` para valores monetários | `Decimal(18,4)` |
 | Sem ledger: saldos sem transações que os expliquem | Modelo `Transaction` como fonte de verdade; saldo é derivado |
-| `Income` e `Expense` como entidades separadas e desligadas das contas | Unificados em `Transaction` com `type` |
+| `Income` e `Expense` como entidades separadas e desligadas das contas | O que aconteceu vive em `Transaction`; o que se espera receber vive em `IncomeSource` |
 | `ownerId` como string solta, sem relação | Relação real `ownerUser` com FK |
 | `GuestAccess` polimórfico sem `resourceType` | Campo adicionado |
 | Multi-moeda sem taxas de câmbio | `ExchangeRate` + valor convertido persistido na transação |
@@ -251,6 +251,40 @@ enum TransactionType {
   TRANSFER
 }
 
+enum IncomeFrequency {
+  ONE_OFF
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum DebtKind {
+  MORTGAGE
+  AUTO
+  PERSONAL
+  CREDIT_CARD
+  INSTALMENT
+}
+
+enum DebtDirection {
+  PAYABLE
+  RECEIVABLE
+}
+
+enum WantPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum WantStatus {
+  IDEA
+  CONVERTED
+  PURCHASED
+  DISCARDED
+}
+
 enum PermissionLevel {
   READ
   WRITE
@@ -259,6 +293,7 @@ enum PermissionLevel {
 enum ResourceType {
   FINANCIAL_ACCOUNT
   TRANSACTION
+  INCOME_SOURCE
   DEBT
   ASSET
   GOAL
@@ -324,6 +359,39 @@ model Category {
   @@index([spaceId, kind])
 }
 
+model IncomeSource {
+  id             String          @id @default(cuid())
+  spaceId        String
+  ownerUserId    String
+  accountId      String
+  categoryId     String?
+  name           String
+  payer          String
+  frequency      IncomeFrequency
+  // Valor previsto por ocorrência. Estimativa quando `variable` é true.
+  expectedAmount Decimal         @db.Decimal(18, 4)
+  variable       Boolean         @default(false)
+  currencyCode   String          @db.Char(3)
+  expectedDay    Int?            @db.TinyInt  // dia do mês; nulo em ONE_OFF
+  expectedMonth  Int?            @db.TinyInt  // 1-12; só em ANNUAL
+  visibility     Visibility      @default(PRIVATE)
+  active         Boolean         @default(true)
+  startedAt      DateTime
+  endedAt        DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  space        Organization     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  ownerUser    User             @relation("IncomeSourceOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  account      FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  category     Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  transactions Transaction[]
+
+  @@index([spaceId, active])
+  @@index([spaceId, ownerUserId])
+  @@index([spaceId, visibility])
+}
+
 model Transaction {
   id               String          @id @default(cuid())
   spaceId          String
@@ -332,6 +400,7 @@ model Transaction {
   accountId        String
   counterAccountId String?         // preenchido apenas em TRANSFER
   categoryId       String?
+  incomeSourceId   String?         // liga a entrada real à fonte que a previa
   type             TransactionType
   // Sempre positivo. O sinal é dado por `type`.
   amount           Decimal         @db.Decimal(18, 4)
@@ -353,11 +422,142 @@ model Transaction {
   account        FinancialAccount  @relation("AccountTransactions", fields: [accountId], references: [id], onDelete: Restrict)
   counterAccount FinancialAccount? @relation("CounterAccountTransactions", fields: [counterAccountId], references: [id], onDelete: Restrict)
   category       Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  incomeSource   IncomeSource?     @relation(fields: [incomeSourceId], references: [id], onDelete: SetNull)
 
   @@index([spaceId, occurredAt])
+  @@index([incomeSourceId, occurredAt])
   @@index([spaceId, ownerUserId, occurredAt])
   @@index([accountId, occurredAt])
   @@index([spaceId, type, occurredAt])
+  @@index([spaceId, visibility])
+}
+
+model Debt {
+  id            String        @id @default(cuid())
+  spaceId       String
+  ownerUserId   String
+  accountId     String?       // conta de onde sai a prestação
+  name          String
+  counterparty  String
+  kind          DebtKind
+  direction     DebtDirection @default(PAYABLE)
+  principal     Decimal       @db.Decimal(18, 4)
+  // Taxa anual nominal em pontos base: 1450 = 14,50%. Inteiro para não herdar
+  // os erros de arredondamento da vírgula flutuante nos juros.
+  interestBps   Int           @default(0)
+  instalment    Decimal       @db.Decimal(18, 4)
+  dueDay        Int           @db.TinyInt
+  currencyCode  String        @db.Char(3)
+  visibility    Visibility    @default(PRIVATE)
+  startedAt     DateTime
+  settledAt     DateTime?
+  deletedAt     DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  space    Organization      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  ownerUser User             @relation("DebtOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  account  FinancialAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  payments DebtPayment[]
+
+  @@index([spaceId, direction, settledAt])
+  @@index([spaceId, ownerUserId])
+  @@index([spaceId, visibility])
+}
+
+model DebtPayment {
+  id            String   @id @default(cuid())
+  debtId        String
+  transactionId String?  @unique // a saída real, quando registada no ledger
+  amount        Decimal  @db.Decimal(18, 4)
+  interestPart  Decimal  @db.Decimal(18, 4)
+  principalPart Decimal  @db.Decimal(18, 4)
+  paidAt        DateTime
+  createdAt     DateTime @default(now())
+
+  debt        Debt         @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([debtId, paidAt])
+}
+
+model Goal {
+  id           String     @id @default(cuid())
+  spaceId      String
+  ownerUserId  String
+  accountId    String?    // conta onde o dinheiro se acumula
+  name         String
+  description  String?    @db.Text
+  targetAmount Decimal    @db.Decimal(18, 4)
+  currencyCode String     @db.Char(3)
+  deadline     DateTime?
+  icon         String?
+  visibility   Visibility @default(PRIVATE)
+  achievedAt   DateTime?
+  deletedAt    DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  space         Organization       @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  ownerUser     User               @relation("GoalOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  account       FinancialAccount?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  assignees     GoalAssignee[]
+  contributions GoalContribution[]
+  wants         Want[]
+
+  @@index([spaceId, deadline])
+  @@index([spaceId, ownerUserId])
+  @@index([spaceId, visibility])
+}
+
+model GoalAssignee {
+  goalId String
+  userId String
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([goalId, userId])
+}
+
+model GoalContribution {
+  id            String   @id @default(cuid())
+  goalId        String
+  memberUserId  String
+  transactionId String?  @unique
+  amount        Decimal  @db.Decimal(18, 4)
+  occurredAt    DateTime
+  createdAt     DateTime @default(now())
+
+  goal        Goal         @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  member      User         @relation("ContributionMember", fields: [memberUserId], references: [id], onDelete: Restrict)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([goalId, occurredAt])
+}
+
+model Want {
+  id            String       @id @default(cuid())
+  spaceId       String
+  ownerUserId   String
+  goalId        String?      // preenchido ao promover o desejo a objetivo
+  name          String
+  note          String?      @db.Text
+  estimatedCost Decimal      @db.Decimal(18, 4)
+  currencyCode  String       @db.Char(3)
+  priority      WantPriority @default(MEDIUM)
+  status        WantStatus   @default(IDEA)
+  visibility    Visibility   @default(PRIVATE)
+  deletedAt     DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  space     Organization @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  ownerUser User         @relation("WantOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  goal      Goal?        @relation(fields: [goalId], references: [id], onDelete: SetNull)
+
+  @@index([spaceId, status, priority])
+  @@index([spaceId, ownerUserId])
   @@index([spaceId, visibility])
 }
 
@@ -434,7 +634,7 @@ model ActivityLog {
 
 ### 5.3 Modelos das fases seguintes
 
-Fase 2 acrescenta `Debt` (com `DebtPayment`), `Asset` (com `AssetValuation` para acompanhar valor ao longo do tempo), `Goal` (com `GoalContribution`), `Want` e `RecurrenceRule`. Fase 3 acrescenta `Document`, `DocumentShareLink` e `Notification`. Fase 4 acrescenta `Subscription`, `Plan` e `AiConversation`. Todos seguem as mesmas convenções: `spaceId`, `ownerUserId`, `visibility`, `Decimal(18,4)` para dinheiro, soft delete e índices em `(spaceId, ...)`.
+Fase 2 acrescenta `Asset` (com `AssetValuation` para acompanhar valor ao longo do tempo) e `RecurrenceRule`. Fase 3 acrescenta `Document`, `DocumentShareLink` e `Notification`. Fase 4 acrescenta `Subscription`, `Plan` e `AiConversation`. Todos seguem as mesmas convenções: `spaceId`, `ownerUserId`, `visibility`, `Decimal(18,4)` para dinheiro, soft delete e índices em `(spaceId, ...)`.
 
 ### 5.4 Regras de negócio sobre dinheiro
 
@@ -442,6 +642,11 @@ Fase 2 acrescenta `Debt` (com `DebtPayment`), `Asset` (com `AssetValuation` para
 - **Transferências não são rendimento nem despesa.** Ficam excluídas de todos os agregados de receitas e gastos.
 - **Conversão cambial é congelada** no momento do registo, em `amountInSpaceCurrency`. Um relatório de Janeiro não pode mudar porque a taxa mudou em Março.
 - **Eliminação é sempre soft delete** em transações, para preservar auditoria.
+- **A fonte de rendimento é previsão, não saldo.** `IncomeSource` nunca mexe em `currentBalance`. Só a `Transaction` que lhe é associada conta para saldos e agregados, e por isso uma fonte pode estar em atraso sem que nada no balanço mude.
+- **Frequências diferentes só se somam depois de normalizadas** ao equivalente mensal, e o resultado é sempre apresentado como estimativa.
+- **O saldo devedor é derivado do plano de amortização.** Cada `DebtPayment` divide-se em juro e capital; `Debt.principal` menos o capital amortizado dá o que falta. Guardar o saldo devedor como campo editável permitiria que deixasse de bater certo com os pagamentos.
+- **A taxa de juro é guardada em pontos base inteiros**, pela mesma razão que o dinheiro anda em unidades mínimas.
+- **Objetivos e desejos não movem dinheiro.** `GoalContribution` e `DebtPayment` podem apontar para a `Transaction` que os concretizou, mas é sempre a transação que altera saldos. Um desejo é uma intenção e não tem qualquer efeito contabilístico enquanto não for promovido a objetivo.
 - **Toda a aritmética monetária usa `Decimal`** de ponta a ponta, incluindo no cliente. Nunca `number`.
 
 ---
@@ -455,11 +660,15 @@ Fase 2 acrescenta `Debt` (com `DebtPayment`), `Asset` (com `AssetValuation` para
 | `/auth/verify-email` | Verificação | Confirmação e reenvio |
 | `/auth/forgot-password`, `/auth/reset-password` | Recuperação | |
 | `/auth/accept-invite` | Aceitar convite | Aceitação de convite para Space |
-| `/onboarding` | Wizard, 3 passos na v1 | Perfil e moeda → Space inicial → Primeira conta. Os passos de rendimento e objetivo do PRD original passam para a Fase 2 |
+| `/onboarding` | Wizard, 4 passos na v1 | Perfil e moeda → Space inicial → Primeira conta → Primeiro rendimento. O passo de objetivo do PRD original passa para a Fase 2 |
 | `/app` | Dashboard | Saldo total, entradas e saídas do mês, últimas transações, contas |
 | `/app/accounts` | Contas | Lista com badges de visibilidade, filtros, criação e edição |
 | `/app/accounts/[id]` | Detalhe de conta | Saldo, extrato de transações, reconciliação |
+| `/app/income` | Rendimentos | Fontes com frequência, valor esperado, pagador e membro responsável; estado de recebimento e últimas entradas |
 | `/app/transactions` | Transações | Tabela filtrável por período, tipo, categoria, conta e membro |
+| `/app/goals` | Objetivos | Progresso, prazo, ritmo atual contra ritmo necessário, responsáveis e contribuições |
+| `/app/wants` | Desejos | Lista com prioridade, custo estimado e promoção a objetivo |
+| `/app/debts` | Dívidas | Amortização, prestação, taxa, juro pago e vencimentos; separa o que devo do que me devem |
 | `/app/members` | Membros | Lista, papéis, convites, remoção |
 | `/app/settings/profile` | Perfil | Nome, foto, país, moeda, fuso horário |
 | `/app/settings/security` | Segurança | Palavra-passe, sessões ativas |

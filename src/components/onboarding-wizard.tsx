@@ -8,6 +8,7 @@ import {
   BanknoteIcon,
   BuildingIcon,
   CheckIcon,
+  LockIcon,
   PiggyBankIcon,
   SmartphoneIcon,
   UserRoundIcon,
@@ -33,6 +34,10 @@ const STEPS = [
   { title: "Perfil", description: "Quem és e em que moeda pensas" },
   { title: "Espaço", description: "Sozinho ou em conjunto" },
   { title: "Primeira conta", description: "Por onde entra e sai o dinheiro" },
+  {
+    title: "Primeiro rendimento",
+    description: "O que entra, de quem e com que frequência",
+  },
 ];
 
 const SPACE_OPTIONS: {
@@ -66,6 +71,7 @@ export function OnboardingWizard() {
   const [step, setStep] = useState(0);
   const [spaceChoice, setSpaceChoice] = useState("family");
   const [accountType, setAccountType] = useState("BANK");
+  const [frequency, setFrequency] = useState("MONTHLY");
 
   const isLast = step === STEPS.length - 1;
 
@@ -129,7 +135,7 @@ export function OnboardingWizard() {
             <div className="space-y-2">
               <Label htmlFor="ob-country">País</Label>
               <Select defaultValue="AO">
-                <SelectTrigger id="ob-country">
+                <SelectTrigger id="ob-country" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -143,7 +149,7 @@ export function OnboardingWizard() {
             <div className="space-y-2">
               <Label htmlFor="ob-currency">Moeda principal</Label>
               <Select defaultValue="AOA">
-                <SelectTrigger id="ob-currency">
+                <SelectTrigger id="ob-currency" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -260,6 +266,64 @@ export function OnboardingWizard() {
                   abertura da conta.
                 </p>
               </div>
+            </div>
+          </div>
+        ) : null}
+
+        {step === 3 ? (
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="ob-income">Nome do rendimento</Label>
+                <Input id="ob-income" placeholder="Salário" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ob-payer">Quem paga</Label>
+                <Input id="ob-payer" placeholder="Sonangol E.P." />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ob-amount">Valor esperado</Label>
+                <Input
+                  id="ob-amount"
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  className="tabular"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ob-frequency">Frequência</Label>
+                <Select value={frequency} onValueChange={setFrequency}>
+                  <SelectTrigger id="ob-frequency" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MONTHLY">Mensal</SelectItem>
+                    <SelectItem value="WEEKLY">Semanal</SelectItem>
+                    <SelectItem value="QUARTERLY">Trimestral</SelectItem>
+                    <SelectItem value="ANNUAL">Anual</SelectItem>
+                    <SelectItem value="ONE_OFF">Pontual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {frequency !== "ONE_OFF" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="ob-day">Dia previsto do mês</Label>
+                  <Input
+                    id="ob-day"
+                    inputMode="numeric"
+                    placeholder="25"
+                    className="tabular"
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            <div className="bg-muted/60 text-muted-foreground flex gap-2 rounded-lg p-3 text-xs leading-relaxed">
+              <LockIcon className="mt-0.5 size-3.5 shrink-0" />
+              <p>
+                O rendimento fica privado por omissão. Podes partilhá-lo com o
+                espaço mais tarde, se quiseres.
+              </p>
             </div>
           </div>
         ) : null}
