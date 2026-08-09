@@ -63,7 +63,7 @@ export default function ProfileSettingsPage() {
             <div className="space-y-2">
               <Label htmlFor="country">País</Label>
               <Select defaultValue="AO">
-                <SelectTrigger id="country">
+                <SelectTrigger id="country" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -77,7 +77,7 @@ export default function ProfileSettingsPage() {
             <div className="space-y-2">
               <Label htmlFor="timezone">Fuso horário</Label>
               <Select defaultValue="Africa/Luanda">
-                <SelectTrigger id="timezone">
+                <SelectTrigger id="timezone" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

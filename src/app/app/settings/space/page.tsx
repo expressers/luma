@@ -40,7 +40,7 @@ export default function SpaceSettingsPage() {
           <div className="space-y-2">
             <Label htmlFor="space-type">Tipo</Label>
             <Select defaultValue={ACTIVE_SPACE.type}>
-              <SelectTrigger id="space-type">
+              <SelectTrigger id="space-type" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -54,7 +54,7 @@ export default function SpaceSettingsPage() {
           <div className="space-y-2">
             <Label htmlFor="space-currency">Moeda do espaço</Label>
             <Select defaultValue={ACTIVE_SPACE.currencyCode}>
-              <SelectTrigger id="space-currency">
+              <SelectTrigger id="space-currency" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

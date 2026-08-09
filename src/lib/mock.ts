@@ -1,11 +1,24 @@
 import type {
   Category,
   CurrencyCode,
+  Debt,
+  DebtKind,
+  DebtPayment,
+  DebtStatus,
   FinancialAccount,
+  Goal,
+  GoalContribution,
+  GoalStatus,
+  IncomeFrequency,
+  IncomeSource,
+  IncomeStatus,
   Member,
   Space,
   Transaction,
   TransactionType,
+  Visibility,
+  Want,
+  WantPriority,
 } from "@/lib/types";
 
 /**
@@ -204,6 +217,115 @@ const ACCOUNT_SEED: Omit<FinancialAccount, "currentBalance">[] = [
 /** 1 EUR ≈ 990 Kz. Taxa congelada, como no modelo de dados. */
 const EUR_RATE = 990;
 
+const INCOME_SOURCE_SEED: IncomeSource[] = [
+  {
+    id: "is1",
+    name: "Salário",
+    payer: "Sonangol E.P.",
+    frequency: "MONTHLY",
+    expectedAmount: 850_000_00,
+    currencyCode: "AOA",
+    expectedDay: 25,
+    accountId: "a1",
+    categoryId: "c-salario",
+    ownerId: "u1",
+    visibility: "PRIVATE",
+    active: true,
+    startedAt: "2023-03-01",
+  },
+  {
+    id: "is2",
+    name: "Salário",
+    payer: "Ministério da Educação",
+    frequency: "MONTHLY",
+    expectedAmount: 620_000_00,
+    currencyCode: "AOA",
+    expectedDay: 26,
+    accountId: "a7",
+    categoryId: "c-salario",
+    ownerId: "u2",
+    visibility: "SPACE",
+    active: true,
+    startedAt: "2021-09-01",
+  },
+  {
+    id: "is3",
+    name: "Renda do T2 do Benfica",
+    payer: "Sr. Adão Miguel",
+    frequency: "MONTHLY",
+    expectedAmount: 180_000_00,
+    currencyCode: "AOA",
+    expectedDay: 5,
+    accountId: "a2",
+    categoryId: "c-rendas",
+    ownerId: "u1",
+    visibility: "SPACE",
+    active: true,
+    startedAt: "2024-06-01",
+  },
+  {
+    id: "is4",
+    name: "Projeto freelance",
+    payer: "Clientes internacionais",
+    frequency: "MONTHLY",
+    expectedAmount: 1_450_00,
+    variable: true,
+    currencyCode: "EUR",
+    expectedDay: 18,
+    accountId: "a6",
+    categoryId: "c-freelance",
+    ownerId: "u1",
+    visibility: "PRIVATE",
+    active: true,
+    startedAt: "2025-01-15",
+  },
+  {
+    id: "is5",
+    name: "Aluguer de equipamento",
+    payer: "Estúdio Kianda",
+    frequency: "MONTHLY",
+    expectedAmount: 75_000_00,
+    currencyCode: "AOA",
+    expectedDay: 1,
+    accountId: "a1",
+    categoryId: "c-rendas",
+    ownerId: "u1",
+    visibility: "SPACE",
+    active: true,
+    startedAt: "2025-10-01",
+  },
+  {
+    id: "is6",
+    name: "Subsídio de férias",
+    payer: "Sonangol E.P.",
+    frequency: "ANNUAL",
+    expectedAmount: 850_000_00,
+    currencyCode: "AOA",
+    expectedDay: 20,
+    expectedMonth: 12,
+    accountId: "a1",
+    categoryId: "c-salario",
+    ownerId: "u1",
+    visibility: "PRIVATE",
+    active: true,
+    startedAt: "2023-12-20",
+  },
+  {
+    id: "is7",
+    name: "Consultoria — Projeto Kwanza",
+    payer: "Banco Atlântico",
+    frequency: "ONE_OFF",
+    expectedAmount: 2_400_000_00,
+    currencyCode: "AOA",
+    accountId: "a1",
+    categoryId: "c-freelance",
+    ownerId: "u1",
+    visibility: "PRIVATE",
+    active: false,
+    startedAt: "2025-04-10",
+  },
+];
+
 // ─── Gerador determinístico ────────────────────────────────────────────────
 
 function seededRandom(seed: number) {
@@ -226,8 +348,9 @@ interface Template {
   categoryId?: string;
   accountId: string;
   counterAccountId?: string;
+  incomeSourceId?: string;
   ownerId: string;
-  visibility: FinancialAccount["visibility"];
+  visibility: Visibility;
   base: number;
   spread: number;
   day: number;
@@ -236,14 +359,17 @@ interface Template {
   currencyCode?: CurrencyCode;
   /** Probabilidade de acontecer num dado mês. */
   chance?: number;
+  /** Deixa o mês corrente por preencher, para demonstrar o estado "atrasado". */
+  skipCurrentMonth?: boolean;
 }
 
 const TEMPLATES: Template[] = [
   // Entradas
-  { type: "INCOME", description: "Salário", categoryId: "c-salario", accountId: "a1", ownerId: "u1", visibility: "PRIVATE", base: 850_000_00, spread: 0, day: 25 },
-  { type: "INCOME", description: "Salário", categoryId: "c-salario", accountId: "a7", ownerId: "u2", visibility: "SPACE", base: 620_000_00, spread: 0, day: 26 },
-  { type: "INCOME", description: "Renda do T2 do Benfica", categoryId: "c-rendas", accountId: "a2", ownerId: "u1", visibility: "SPACE", base: 180_000_00, spread: 0, day: 5 },
-  { type: "INCOME", description: "Projeto freelance", categoryId: "c-freelance", accountId: "a6", ownerId: "u1", visibility: "PRIVATE", base: 1_450_00, spread: 600_00, day: 18, currencyCode: "EUR", chance: 0.7 },
+  { type: "INCOME", description: "Salário", categoryId: "c-salario", incomeSourceId: "is1", accountId: "a1", ownerId: "u1", visibility: "PRIVATE", base: 850_000_00, spread: 0, day: 25 },
+  { type: "INCOME", description: "Salário", categoryId: "c-salario", incomeSourceId: "is2", accountId: "a7", ownerId: "u2", visibility: "SPACE", base: 620_000_00, spread: 0, day: 26 },
+  { type: "INCOME", description: "Renda do T2 do Benfica", categoryId: "c-rendas", incomeSourceId: "is3", accountId: "a2", ownerId: "u1", visibility: "SPACE", base: 180_000_00, spread: 0, day: 5 },
+  { type: "INCOME", description: "Projeto freelance", categoryId: "c-freelance", incomeSourceId: "is4", accountId: "a6", ownerId: "u1", visibility: "PRIVATE", base: 1_450_00, spread: 600_00, day: 18, currencyCode: "EUR", chance: 0.7 },
+  { type: "INCOME", description: "Aluguer de equipamento", categoryId: "c-rendas", incomeSourceId: "is5", accountId: "a1", ownerId: "u1", visibility: "SPACE", base: 75_000_00, spread: 0, day: 1, skipCurrentMonth: true },
 
   // Habitação e serviços
   { type: "EXPENSE", description: "Renda de casa", categoryId: "c-habitacao", accountId: "a2", ownerId: "u1", visibility: "SPACE", base: 450_000_00, spread: 0, day: 3 },
@@ -273,6 +399,10 @@ const TEMPLATES: Template[] = [
 
 const TODAY = new Date("2026-08-09T12:00:00Z");
 const MONTHS_OF_HISTORY = 7;
+/** Início do histórico gerado. Antes disto não sabemos nada. */
+const HISTORY_START = new Date(
+  Date.UTC(TODAY.getUTCFullYear(), TODAY.getUTCMonth() - (MONTHS_OF_HISTORY - 1), 1),
+);
 /** O mês corrente está incompleto, por isso fica fora do gráfico mensal. */
 const COMPLETE_MONTHS = MONTHS_OF_HISTORY - 1;
 
@@ -286,6 +416,7 @@ function buildTransactions(): Transaction[] {
     );
 
     for (const t of TEMPLATES) {
+      if (t.skipCurrentMonth && back === 0) continue;
       if (t.chance !== undefined && random() > t.chance) continue;
 
       const occurrences = t.times ?? 1;
@@ -310,6 +441,7 @@ function buildTransactions(): Transaction[] {
           categoryId: t.categoryId,
           accountId: t.accountId,
           counterAccountId: t.counterAccountId,
+          incomeSourceId: t.incomeSourceId,
           ownerId: t.ownerId,
           visibility: t.visibility,
           occurredAt: date.toISOString(),
@@ -499,6 +631,183 @@ export function getMonthlySeries(userId = CURRENT_USER.id): MonthlyPoint[] {
   return [...buckets.values()];
 }
 
+// ─── Fontes de rendimento ──────────────────────────────────────────────────
+
+const FREQUENCY_LABELS: Record<IncomeFrequency, string> = {
+  ONE_OFF: "Pontual",
+  WEEKLY: "Semanal",
+  MONTHLY: "Mensal",
+  QUARTERLY: "Trimestral",
+  ANNUAL: "Anual",
+};
+
+export function frequencyLabel(frequency: IncomeFrequency): string {
+  return FREQUENCY_LABELS[frequency];
+}
+
+/** Quantas vezes por ano a fonte paga. `ONE_OFF` não é recorrente. */
+const OCCURRENCES_PER_YEAR: Record<IncomeFrequency, number> = {
+  ONE_OFF: 0,
+  WEEKLY: 52,
+  MONTHLY: 12,
+  QUARTERLY: 4,
+  ANNUAL: 1,
+};
+
+/** Valor equivalente mensal, para poder somar fontes de frequências diferentes. */
+export function monthlyEquivalent(source: IncomeSource): number {
+  const inSpaceCurrency =
+    source.currencyCode === "EUR"
+      ? source.expectedAmount * EUR_RATE
+      : source.expectedAmount;
+  return Math.round(
+    (inSpaceCurrency * OCCURRENCES_PER_YEAR[source.frequency]) / 12,
+  );
+}
+
+function nextOccurrence(source: IncomeSource, after: Date): Date | undefined {
+  if (source.frequency === "ONE_OFF") return undefined;
+
+  const day = source.expectedDay ?? 1;
+
+  if (source.frequency === "ANNUAL") {
+    const month = (source.expectedMonth ?? 1) - 1;
+    let year = after.getUTCFullYear();
+    let candidate = new Date(Date.UTC(year, month, day, 10));
+    if (candidate <= after) {
+      year += 1;
+      candidate = new Date(Date.UTC(year, month, day, 10));
+    }
+    return candidate;
+  }
+
+  if (source.frequency === "WEEKLY") {
+    return new Date(after.getTime() + 7 * DAY);
+  }
+
+  const step = source.frequency === "QUARTERLY" ? 3 : 1;
+  let candidate = new Date(
+    Date.UTC(after.getUTCFullYear(), after.getUTCMonth(), day, 10),
+  );
+  while (candidate <= after) {
+    candidate = new Date(
+      Date.UTC(
+        candidate.getUTCFullYear(),
+        candidate.getUTCMonth() + step,
+        day,
+        10,
+      ),
+    );
+  }
+  return candidate;
+}
+
+export interface IncomeSourceView extends IncomeSource {
+  status: IncomeStatus;
+  lastReceivedAt?: string;
+  lastReceivedAmount?: number;
+  nextExpectedAt?: string;
+  /** Total recebido desta fonte no histórico visível. */
+  receivedTotal: number;
+}
+
+export function getIncomeSources(
+  userId = CURRENT_USER.id,
+): IncomeSourceView[] {
+  const visibleAccounts = new Set(getAccounts(userId).map((a) => a.id));
+
+  return INCOME_SOURCE_SEED.filter(
+    (source) => isVisible(source, userId) && visibleAccounts.has(source.accountId),
+  )
+    .map((source) => {
+      const received = ALL_TRANSACTIONS.filter(
+        (t) => t.incomeSourceId === source.id,
+      );
+      const last = received[0];
+      const receivedTotal = received.reduce((sum, t) => sum + t.amount, 0);
+
+      if (!source.active) {
+        return {
+          ...source,
+          status: "INACTIVE" as const,
+          lastReceivedAt: last?.occurredAt,
+          lastReceivedAmount: last?.amount,
+          receivedTotal,
+        };
+      }
+
+      // Sem recebimentos, a fonte só pode estar em atraso a partir do momento
+      // em que temos histórico. Caso contrário, uma fonte anual antiga apareceria
+      // em atraso apenas por os pagamentos serem anteriores à janela de dados.
+      const since = last
+        ? new Date(last.occurredAt)
+        : new Date(
+            Math.max(Date.parse(source.startedAt), HISTORY_START.getTime()),
+          );
+      const next = nextOccurrence(source, since);
+
+      let status: IncomeStatus = "PENDING";
+      if (next && next < TODAY) status = "LATE";
+      else if (last && inWindow(last.occurredAt, 0)) status = "RECEIVED";
+
+      return {
+        ...source,
+        status,
+        lastReceivedAt: last?.occurredAt,
+        lastReceivedAmount: last?.amount,
+        nextExpectedAt: next?.toISOString(),
+        receivedTotal,
+      };
+    })
+    .sort((a, b) => monthlyEquivalent(b) - monthlyEquivalent(a));
+}
+
+export interface IncomeSummary {
+  expectedMonthly: number;
+  receivedWindow: number;
+  lateCount: number;
+  next?: IncomeSourceView;
+  currency: CurrencyCode;
+}
+
+export function getIncomeSummary(userId = CURRENT_USER.id): IncomeSummary {
+  const sources = getIncomeSources(userId).filter((s) => s.active);
+
+  const expectedMonthly = sources.reduce(
+    (sum, source) => sum + monthlyEquivalent(source),
+    0,
+  );
+
+  const receivedWindow = getTransactions({ userId })
+    .filter((t) => t.type === "INCOME" && inWindow(t.occurredAt, 0))
+    .reduce((sum, t) => sum + t.amountInSpaceCurrency, 0);
+
+  const upcoming = sources
+    .flatMap((source) =>
+      source.nextExpectedAt && source.status !== "LATE"
+        ? [{ source, at: Date.parse(source.nextExpectedAt) }]
+        : [],
+    )
+    .sort((a, b) => a.at - b.at);
+
+  return {
+    expectedMonthly,
+    receivedWindow,
+    lateCount: sources.filter((s) => s.status === "LATE").length,
+    next: upcoming[0]?.source,
+    currency: ACTIVE_SPACE.currencyCode,
+  };
+}
+
+export function getIncomeTransactions(
+  options: { limit?: number; userId?: string } = {},
+): Transaction[] {
+  const rows = getTransactions({ userId: options.userId }).filter(
+    (t) => t.type === "INCOME",
+  );
+  return options.limit ? rows.slice(0, options.limit) : rows;
+}
+
 export interface CategoryTotal {
   categoryId: string;
   name: string;
@@ -530,4 +839,730 @@ export function getCategoryBreakdown(
       share: grandTotal > 0 ? total / grandTotal : 0,
     }))
     .sort((a, b) => b.total - a.total);
+}
+
+// ─── Dívidas ───────────────────────────────────────────────────────────────
+
+const DEBT_LABELS: Record<DebtKind, string> = {
+  MORTGAGE: "Habitação",
+  AUTO: "Automóvel",
+  PERSONAL: "Pessoal",
+  CREDIT_CARD: "Cartão de crédito",
+  INSTALMENT: "Prestações",
+};
+
+export function debtKindLabel(kind: DebtKind): string {
+  return DEBT_LABELS[kind];
+}
+
+interface DebtSeed extends Debt {
+  /** Salta a prestação mais recente, para demonstrar o estado "em atraso". */
+  missedLast?: boolean;
+}
+
+const DEBT_SEED: DebtSeed[] = [
+  {
+    id: "d1",
+    name: "Crédito habitação",
+    counterparty: "Banco BFA",
+    kind: "MORTGAGE",
+    direction: "PAYABLE",
+    principal: 12_000_000_00,
+    interestBps: 1120,
+    instalment: 210_000_00,
+    dueDay: 5,
+    currencyCode: "AOA",
+    accountId: "a2",
+    ownerId: "u1",
+    visibility: "SPACE",
+    startedAt: "2022-03-05",
+  },
+  {
+    id: "d2",
+    name: "Crédito automóvel",
+    counterparty: "Banco BAI",
+    kind: "AUTO",
+    direction: "PAYABLE",
+    principal: 6_500_000_00,
+    interestBps: 1450,
+    instalment: 185_000_00,
+    dueDay: 10,
+    currencyCode: "AOA",
+    accountId: "a1",
+    ownerId: "u1",
+    visibility: "SPACE",
+    startedAt: "2024-09-10",
+  },
+  {
+    id: "d3",
+    name: "Cartão de crédito",
+    counterparty: "Banco BAI",
+    kind: "CREDIT_CARD",
+    direction: "PAYABLE",
+    principal: 850_000_00,
+    interestBps: 2400,
+    instalment: 95_000_00,
+    dueDay: 20,
+    currencyCode: "AOA",
+    accountId: "a1",
+    ownerId: "u1",
+    visibility: "PRIVATE",
+    startedAt: "2025-10-20",
+  },
+  {
+    id: "d4",
+    name: "Crédito pessoal",
+    counterparty: "Banco Sol",
+    kind: "PERSONAL",
+    direction: "PAYABLE",
+    principal: 1_200_000_00,
+    interestBps: 1800,
+    instalment: 110_000_00,
+    dueDay: 1,
+    currencyCode: "AOA",
+    accountId: "a1",
+    ownerId: "u1",
+    visibility: "SPACE",
+    startedAt: "2025-11-01",
+    missedLast: true,
+  },
+  {
+    id: "d5",
+    name: "Computador em prestações",
+    counterparty: "Loja Kero",
+    kind: "INSTALMENT",
+    direction: "PAYABLE",
+    principal: 480_000_00,
+    interestBps: 0,
+    instalment: 40_000_00,
+    dueDay: 15,
+    currencyCode: "AOA",
+    accountId: "a1",
+    ownerId: "u1",
+    visibility: "PRIVATE",
+    startedAt: "2025-07-15",
+  },
+  {
+    id: "d6",
+    name: "Empréstimo ao Nuno",
+    counterparty: "Nuno Chinhemba",
+    kind: "PERSONAL",
+    direction: "RECEIVABLE",
+    principal: 350_000_00,
+    interestBps: 0,
+    instalment: 50_000_00,
+    dueDay: 28,
+    currencyCode: "AOA",
+    ownerId: "u1",
+    visibility: "SPACE",
+    startedAt: "2026-03-28",
+  },
+  {
+    id: "d7",
+    name: "Crédito de formação",
+    counterparty: "Banco BIC",
+    kind: "PERSONAL",
+    direction: "PAYABLE",
+    principal: 900_000_00,
+    interestBps: 1600,
+    instalment: 85_000_00,
+    dueDay: 12,
+    currencyCode: "AOA",
+    accountId: "a7",
+    ownerId: "u2",
+    visibility: "PRIVATE",
+    startedAt: "2025-06-12",
+  },
+];
+
+/**
+ * O saldo devedor é derivado do plano de amortização, não guardado. Cada
+ * prestação divide-se em juro sobre o capital em dívida e amortização.
+ */
+function buildDebtPayments(): DebtPayment[] {
+  const payments: DebtPayment[] = [];
+
+  for (const debt of DEBT_SEED) {
+    let outstanding = debt.principal;
+    const monthlyRate = debt.interestBps / 10_000 / 12;
+    const start = new Date(debt.startedAt);
+    let index = 0;
+
+    for (let month = 0; month < 600 && outstanding > 0; month++) {
+      const due = new Date(
+        Date.UTC(
+          start.getUTCFullYear(),
+          start.getUTCMonth() + month,
+          debt.dueDay,
+          10,
+        ),
+      );
+      if (due > TODAY) break;
+
+      const interestPart = Math.round(outstanding * monthlyRate);
+      const principalPart = Math.min(
+        debt.instalment - interestPart,
+        outstanding,
+      );
+      // Prestação inferior ao juro nunca amortiza: seria um erro de dados.
+      if (principalPart <= 0) break;
+
+      outstanding -= principalPart;
+      index += 1;
+
+      payments.push({
+        id: `${debt.id}-p${index}`,
+        debtId: debt.id,
+        amount: interestPart + principalPart,
+        interestPart,
+        principalPart,
+        paidAt: due.toISOString(),
+      });
+    }
+
+    if (debt.missedLast && payments.at(-1)?.debtId === debt.id) {
+      payments.pop();
+    }
+  }
+
+  return payments.sort((a, b) => Date.parse(b.paidAt) - Date.parse(a.paidAt));
+}
+
+const ALL_DEBT_PAYMENTS = buildDebtPayments();
+
+function nextDueDate(debt: Debt, afterIso?: string): Date {
+  const from = afterIso ? new Date(afterIso) : new Date(debt.startedAt);
+  let candidate = new Date(
+    Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), debt.dueDay, 10),
+  );
+  while (candidate <= from) {
+    candidate = new Date(
+      Date.UTC(
+        candidate.getUTCFullYear(),
+        candidate.getUTCMonth() + 1,
+        debt.dueDay,
+        10,
+      ),
+    );
+  }
+  return candidate;
+}
+
+export interface DebtView extends Debt {
+  outstanding: number;
+  paidPrincipal: number;
+  paidInterest: number;
+  progress: number;
+  paymentsMade: number;
+  status: DebtStatus;
+  lastPaidAt?: string;
+  nextDueAt?: string;
+  settledAt?: string;
+}
+
+function toDebtView(debt: DebtSeed): DebtView {
+  const payments = ALL_DEBT_PAYMENTS.filter((p) => p.debtId === debt.id);
+  const paidPrincipal = payments.reduce((sum, p) => sum + p.principalPart, 0);
+  const paidInterest = payments.reduce((sum, p) => sum + p.interestPart, 0);
+  const outstanding = debt.principal - paidPrincipal;
+  const last = payments[0];
+  const settled = outstanding <= 0;
+  const nextDue = settled ? undefined : nextDueDate(debt, last?.paidAt);
+
+  let status: DebtStatus = "ON_TRACK";
+  if (settled) status = "SETTLED";
+  else if (nextDue && nextDue < TODAY) status = "LATE";
+
+  return {
+    ...debt,
+    outstanding: Math.max(outstanding, 0),
+    paidPrincipal,
+    paidInterest,
+    progress: debt.principal > 0 ? paidPrincipal / debt.principal : 0,
+    paymentsMade: payments.length,
+    status,
+    lastPaidAt: last?.paidAt,
+    nextDueAt: settled ? undefined : nextDue?.toISOString(),
+    settledAt: settled ? last?.paidAt : undefined,
+  };
+}
+
+export function getDebts(userId = CURRENT_USER.id): DebtView[] {
+  return DEBT_SEED.filter((debt) => isVisible(debt, userId))
+    .map(toDebtView)
+    .sort((a, b) => b.outstanding - a.outstanding);
+}
+
+export function getDebtPayments(
+  debtId: string,
+  limit?: number,
+): DebtPayment[] {
+  const rows = ALL_DEBT_PAYMENTS.filter((p) => p.debtId === debtId);
+  return limit ? rows.slice(0, limit) : rows;
+}
+
+export interface DebtSummary {
+  totalPayable: number;
+  totalReceivable: number;
+  monthlyInstalments: number;
+  interestPaid: number;
+  lateCount: number;
+  next?: DebtView;
+  currency: CurrencyCode;
+}
+
+export function getDebtSummary(userId = CURRENT_USER.id): DebtSummary {
+  const debts = getDebts(userId);
+  const open = debts.filter((d) => d.status !== "SETTLED");
+
+  // As atrasadas são comunicadas pelo alerta; "próximo" tem de ser futuro.
+  const upcoming = open
+    .flatMap((debt) =>
+      debt.direction === "PAYABLE" && debt.nextDueAt && debt.status !== "LATE"
+        ? [{ debt, at: Date.parse(debt.nextDueAt) }]
+        : [],
+    )
+    .sort((a, b) => a.at - b.at);
+
+  return {
+    totalPayable: open
+      .filter((d) => d.direction === "PAYABLE")
+      .reduce((sum, d) => sum + d.outstanding, 0),
+    totalReceivable: open
+      .filter((d) => d.direction === "RECEIVABLE")
+      .reduce((sum, d) => sum + d.outstanding, 0),
+    monthlyInstalments: open
+      .filter((d) => d.direction === "PAYABLE")
+      .reduce((sum, d) => sum + d.instalment, 0),
+    interestPaid: debts.reduce((sum, d) => sum + d.paidInterest, 0),
+    lateCount: open.filter((d) => d.status === "LATE").length,
+    next: upcoming[0]?.debt,
+    currency: ACTIVE_SPACE.currencyCode,
+  };
+}
+
+// ─── Objetivos ─────────────────────────────────────────────────────────────
+
+interface GoalSeed extends Goal {
+  /** Contribuição regular mensal, base da geração de histórico. */
+  monthlyContribution: number;
+  /** Meses em que a contribuição falhou, contados a partir do início. */
+  skipMonths?: number[];
+  kickoff?: number;
+}
+
+const GOAL_SEED: GoalSeed[] = [
+  {
+    id: "g1",
+    name: "Fundo de emergência",
+    description: "Seis meses de despesas fixas da família.",
+    targetAmount: 6_000_000_00,
+    currencyCode: "AOA",
+    deadline: "2026-12-31",
+    accountId: "a3",
+    ownerId: "u1",
+    assigneeIds: ["u1", "u2"],
+    visibility: "SPACE",
+    icon: "ShieldCheck",
+    startedAt: "2025-02-01",
+    monthlyContribution: 250_000_00,
+    kickoff: 800_000_00,
+  },
+  {
+    id: "g2",
+    name: "Entrada da casa",
+    description: "Vinte por cento do valor do T3 no Talatona.",
+    targetAmount: 15_000_000_00,
+    currencyCode: "AOA",
+    deadline: "2028-06-30",
+    accountId: "a3",
+    ownerId: "u1",
+    assigneeIds: ["u1", "u2"],
+    visibility: "SPACE",
+    icon: "House",
+    startedAt: "2025-06-01",
+    monthlyContribution: 480_000_00,
+  },
+  {
+    id: "g3",
+    name: "Viagem a Portugal",
+    description: "Duas semanas em agosto, quatro pessoas.",
+    targetAmount: 2_400_000_00,
+    currencyCode: "AOA",
+    deadline: "2027-02-28",
+    accountId: "a3",
+    ownerId: "u2",
+    assigneeIds: ["u1", "u2", "u3", "u4"],
+    visibility: "SPACE",
+    icon: "Plane",
+    startedAt: "2026-01-01",
+    monthlyContribution: 120_000_00,
+    skipMonths: [3, 4],
+  },
+  {
+    id: "g4",
+    name: "Substituir o carro",
+    targetAmount: 4_500_000_00,
+    currencyCode: "AOA",
+    deadline: "2028-12-31",
+    accountId: "a3",
+    ownerId: "u1",
+    visibility: "PRIVATE",
+    icon: "Car",
+    startedAt: "2026-03-01",
+    monthlyContribution: 150_000_00,
+  },
+  {
+    id: "g5",
+    name: "Propinas da Aida",
+    description: "Ano letivo 2026/2027.",
+    targetAmount: 450_000_00,
+    currencyCode: "AOA",
+    deadline: "2026-09-30",
+    accountId: "a3",
+    ownerId: "u1",
+    assigneeIds: ["u4"],
+    visibility: "CUSTOM",
+    sharedWith: ["u2", "u4"],
+    icon: "GraduationCap",
+    startedAt: "2026-02-01",
+    monthlyContribution: 45_000_00,
+  },
+  {
+    id: "g6",
+    name: "Computador novo",
+    targetAmount: 480_000_00,
+    currencyCode: "AOA",
+    ownerId: "u1",
+    visibility: "PRIVATE",
+    icon: "Laptop",
+    startedAt: "2025-09-01",
+    monthlyContribution: 80_000_00,
+  },
+  {
+    id: "g7",
+    name: "Presente de aniversário",
+    targetAmount: 600_000_00,
+    currencyCode: "AOA",
+    deadline: "2026-11-15",
+    ownerId: "u2",
+    visibility: "PRIVATE",
+    icon: "Gift",
+    startedAt: "2026-04-01",
+    monthlyContribution: 60_000_00,
+  },
+];
+
+function buildGoalContributions(): GoalContribution[] {
+  const rows: GoalContribution[] = [];
+
+  for (const goal of GOAL_SEED) {
+    const start = new Date(goal.startedAt);
+    let total = 0;
+    let index = 0;
+
+    if (goal.kickoff) {
+      total += goal.kickoff;
+      index += 1;
+      rows.push({
+        id: `${goal.id}-c${index}`,
+        goalId: goal.id,
+        amount: goal.kickoff,
+        memberId: goal.ownerId,
+        occurredAt: start.toISOString(),
+      });
+    }
+
+    for (let month = 0; month < 240; month++) {
+      const at = new Date(
+        Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + month, 3, 10),
+      );
+      if (at > TODAY) break;
+      if (goal.skipMonths?.includes(month)) continue;
+      if (total >= goal.targetAmount) break;
+
+      const amount = Math.min(
+        goal.monthlyContribution,
+        goal.targetAmount - total,
+      );
+      total += amount;
+      index += 1;
+
+      // Em objetivos partilhados, as contribuições alternam entre responsáveis.
+      const assignees = goal.assigneeIds ?? [goal.ownerId];
+      rows.push({
+        id: `${goal.id}-c${index}`,
+        goalId: goal.id,
+        amount,
+        memberId: assignees[index % assignees.length],
+        occurredAt: at.toISOString(),
+      });
+    }
+  }
+
+  return rows.sort(
+    (a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt),
+  );
+}
+
+const ALL_GOAL_CONTRIBUTIONS = buildGoalContributions();
+
+const MONTH_MS = 30.44 * DAY;
+
+export interface GoalView extends Goal {
+  saved: number;
+  progress: number;
+  remaining: number;
+  /** Quanto é preciso poupar por mês para cumprir o prazo. */
+  requiredMonthly: number;
+  /** Ritmo efetivo dos últimos meses. */
+  currentMonthly: number;
+  monthsLeft?: number;
+  status: GoalStatus;
+  lastContributionAt?: string;
+  contributionCount: number;
+}
+
+function toGoalView(goal: GoalSeed): GoalView {
+  const contributions = ALL_GOAL_CONTRIBUTIONS.filter(
+    (c) => c.goalId === goal.id,
+  );
+  const saved = contributions.reduce((sum, c) => sum + c.amount, 0);
+  const remaining = Math.max(goal.targetAmount - saved, 0);
+  const achieved = remaining === 0;
+
+  const elapsedMonths = Math.max(
+    (TODAY.getTime() - Date.parse(goal.startedAt)) / MONTH_MS,
+    1,
+  );
+  const currentMonthly = Math.round(saved / elapsedMonths);
+
+  const monthsLeft = goal.deadline
+    ? (Date.parse(goal.deadline) - TODAY.getTime()) / MONTH_MS
+    : undefined;
+
+  const requiredMonthly =
+    monthsLeft && monthsLeft > 0 ? Math.round(remaining / monthsLeft) : 0;
+
+  let status: GoalStatus = "ON_TRACK";
+  if (achieved) status = "ACHIEVED";
+  else if (monthsLeft !== undefined && monthsLeft <= 0) status = "OVERDUE";
+  else if (requiredMonthly > currentMonthly * 1.15) status = "AT_RISK";
+
+  return {
+    ...goal,
+    saved,
+    progress: goal.targetAmount > 0 ? saved / goal.targetAmount : 0,
+    remaining,
+    requiredMonthly,
+    currentMonthly,
+    monthsLeft: monthsLeft !== undefined ? Math.max(monthsLeft, 0) : undefined,
+    status,
+    lastContributionAt: contributions[0]?.occurredAt,
+    contributionCount: contributions.length,
+  };
+}
+
+export function getGoals(userId = CURRENT_USER.id): GoalView[] {
+  const order: Record<GoalStatus, number> = {
+    OVERDUE: 0,
+    AT_RISK: 1,
+    ON_TRACK: 2,
+    ACHIEVED: 3,
+  };
+
+  return GOAL_SEED.filter((goal) => isVisible(goal, userId))
+    .map(toGoalView)
+    .sort(
+      (a, b) => order[a.status] - order[b.status] || b.progress - a.progress,
+    );
+}
+
+export function getGoalContributions(
+  goalId: string,
+  limit?: number,
+): GoalContribution[] {
+  const rows = ALL_GOAL_CONTRIBUTIONS.filter((c) => c.goalId === goalId);
+  return limit ? rows.slice(0, limit) : rows;
+}
+
+export interface GoalSummary {
+  saved: number;
+  target: number;
+  progress: number;
+  requiredMonthly: number;
+  achievedCount: number;
+  atRiskCount: number;
+  currency: CurrencyCode;
+}
+
+export function getGoalSummary(userId = CURRENT_USER.id): GoalSummary {
+  const goals = getGoals(userId);
+  const saved = goals.reduce((sum, g) => sum + g.saved, 0);
+  const target = goals.reduce((sum, g) => sum + g.targetAmount, 0);
+
+  return {
+    saved,
+    target,
+    progress: target > 0 ? saved / target : 0,
+    requiredMonthly: goals.reduce((sum, g) => sum + g.requiredMonthly, 0),
+    achievedCount: goals.filter((g) => g.status === "ACHIEVED").length,
+    atRiskCount: goals.filter(
+      (g) => g.status === "AT_RISK" || g.status === "OVERDUE",
+    ).length,
+    currency: ACTIVE_SPACE.currencyCode,
+  };
+}
+
+// ─── Desejos ───────────────────────────────────────────────────────────────
+
+const WANT_SEED: Want[] = [
+  {
+    id: "w1",
+    name: "MacBook Pro 14",
+    note: "Para substituir o portátil de trabalho, já com quatro anos.",
+    estimatedCost: 3_200_000_00,
+    currencyCode: "AOA",
+    priority: "HIGH",
+    status: "IDEA",
+    ownerId: "u1",
+    visibility: "PRIVATE",
+    createdAt: "2026-05-14",
+  },
+  {
+    id: "w2",
+    name: "Fim de semana no Namibe",
+    note: "Quatro pessoas, três noites, viagem incluída.",
+    estimatedCost: 1_800_000_00,
+    currencyCode: "AOA",
+    priority: "MEDIUM",
+    status: "IDEA",
+    ownerId: "u1",
+    visibility: "SPACE",
+    createdAt: "2026-06-02",
+  },
+  {
+    id: "w3",
+    name: "Bicicleta elétrica",
+    estimatedCost: 950_000_00,
+    currencyCode: "AOA",
+    priority: "LOW",
+    status: "IDEA",
+    ownerId: "u2",
+    visibility: "SPACE",
+    createdAt: "2026-07-21",
+  },
+  {
+    id: "w4",
+    name: "PlayStation 5",
+    note: "Pedido do Nuno, a discutir em família.",
+    estimatedCost: 780_000_00,
+    currencyCode: "AOA",
+    priority: "LOW",
+    status: "IDEA",
+    ownerId: "u3",
+    visibility: "SPACE",
+    createdAt: "2026-07-30",
+  },
+  {
+    id: "w5",
+    name: "Máquina de café",
+    estimatedCost: 320_000_00,
+    currencyCode: "AOA",
+    priority: "MEDIUM",
+    status: "PURCHASED",
+    ownerId: "u1",
+    visibility: "SPACE",
+    createdAt: "2026-03-08",
+  },
+  {
+    id: "w6",
+    name: "Computador novo",
+    note: "Promovido a objetivo em setembro.",
+    estimatedCost: 480_000_00,
+    currencyCode: "AOA",
+    priority: "HIGH",
+    status: "CONVERTED",
+    goalId: "g6",
+    ownerId: "u1",
+    visibility: "PRIVATE",
+    createdAt: "2025-08-19",
+  },
+  {
+    id: "w7",
+    name: "Curso de fotografia",
+    estimatedCost: 180_000_00,
+    currencyCode: "AOA",
+    priority: "LOW",
+    status: "DISCARDED",
+    ownerId: "u1",
+    visibility: "PRIVATE",
+    createdAt: "2026-01-11",
+  },
+  {
+    id: "w8",
+    name: "Telemóvel novo",
+    estimatedCost: 1_100_000_00,
+    currencyCode: "AOA",
+    priority: "HIGH",
+    status: "IDEA",
+    ownerId: "u2",
+    visibility: "PRIVATE",
+    createdAt: "2026-06-27",
+  },
+];
+
+const PRIORITY_ORDER: Record<WantPriority, number> = {
+  HIGH: 0,
+  MEDIUM: 1,
+  LOW: 2,
+};
+
+export interface WantView extends Want {
+  /** Meses de poupança ao ritmo atual. `undefined` se não sobra nada. */
+  monthsToAfford?: number;
+  goalName?: string;
+}
+
+export function getWants(userId = CURRENT_USER.id): WantView[] {
+  const summary = getDashboardSummary(userId);
+  const monthlySurplus = summary.income - summary.expense;
+
+  return WANT_SEED.filter((want) => isVisible(want, userId))
+    .map((want) => ({
+      ...want,
+      monthsToAfford:
+        monthlySurplus > 0 ? want.estimatedCost / monthlySurplus : undefined,
+      goalName: want.goalId
+        ? GOAL_SEED.find((g) => g.id === want.goalId)?.name
+        : undefined,
+    }))
+    .sort(
+      (a, b) =>
+        PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] ||
+        b.estimatedCost - a.estimatedCost,
+    );
+}
+
+export interface WantSummary {
+  openCount: number;
+  openTotal: number;
+  highPriorityTotal: number;
+  monthlySurplus: number;
+  currency: CurrencyCode;
+}
+
+export function getWantSummary(userId = CURRENT_USER.id): WantSummary {
+  const wants = getWants(userId).filter((w) => w.status === "IDEA");
+  const summary = getDashboardSummary(userId);
+
+  return {
+    openCount: wants.length,
+    openTotal: wants.reduce((sum, w) => sum + w.estimatedCost, 0),
+    highPriorityTotal: wants
+      .filter((w) => w.priority === "HIGH")
+      .reduce((sum, w) => sum + w.estimatedCost, 0),
+    monthlySurplus: summary.income - summary.expense,
+    currency: ACTIVE_SPACE.currencyCode,
+  };
 }

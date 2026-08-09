@@ -22,7 +22,11 @@ import { accountById } from "@/lib/mock";
 const SEGMENT_LABELS: Record<string, string> = {
   app: "Luma",
   accounts: "Contas",
+  income: "Rendimentos",
   transactions: "Transações",
+  goals: "Objetivos",
+  wants: "Desejos",
+  debts: "Dívidas",
   members: "Membros",
   notifications: "Notificações",
   settings: "Definições",

@@ -45,7 +45,7 @@ export default function PreferencesSettingsPage() {
           <div className="space-y-2">
             <Label htmlFor="currency">Moeda principal</Label>
             <Select defaultValue="AOA">
-              <SelectTrigger id="currency">
+              <SelectTrigger id="currency" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -59,7 +59,7 @@ export default function PreferencesSettingsPage() {
           <div className="space-y-2">
             <Label htmlFor="language">Idioma</Label>
             <Select defaultValue="pt">
-              <SelectTrigger id="language">
+              <SelectTrigger id="language" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

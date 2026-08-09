@@ -30,10 +30,12 @@ import {
   getAccounts,
   getCategoryBreakdown,
   getDashboardSummary,
+  getDebtSummary,
+  getGoals,
   getMonthlySeries,
   getTransactions,
 } from "@/lib/mock";
-import { formatMoney, formatPercent } from "@/lib/money";
+import { formatDate, formatMoney, formatPercent } from "@/lib/money";
 
 export const metadata = { title: "Dashboard" };
 
@@ -48,6 +50,8 @@ export default function DashboardPage() {
   const breakdown = getCategoryBreakdown();
   const accounts = getAccounts();
   const recent = getTransactions({ limit: 6 });
+  const goals = getGoals().filter((goal) => goal.status !== "ACHIEVED");
+  const debts = getDebtSummary();
   const currency = summary.currency;
 
   return (
@@ -128,6 +132,93 @@ export default function DashboardPage() {
                 <Progress value={item.share * 100} className="h-1.5" />
               </div>
             ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="min-w-0 lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Objetivos</CardTitle>
+            <CardDescription>
+              Progresso da poupança com destino definido
+            </CardDescription>
+            <CardAction>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/app/goals">
+                  Ver todos
+                  <ArrowRightIcon />
+                </Link>
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {goals.slice(0, 4).map((goal) => (
+              <div key={goal.id} className="space-y-1.5">
+                <div className="flex items-baseline justify-between gap-2 text-sm">
+                  <span className="truncate">{goal.name}</span>
+                  <span className="tabular text-muted-foreground shrink-0 text-xs">
+                    {formatMoney(goal.saved, currency, { hideDecimals: true })}{" "}
+                    de{" "}
+                    {formatMoney(goal.targetAmount, currency, {
+                      hideDecimals: true,
+                    })}
+                  </span>
+                </div>
+                <Progress value={goal.progress * 100} className="h-1.5" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="min-w-0">
+          <CardHeader>
+            <CardTitle>Dívidas</CardTitle>
+            <CardAction>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/app/debts">
+                  Gerir
+                  <ArrowRightIcon />
+                </Link>
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-muted-foreground text-xs">Em dívida</p>
+              <p className="tabular font-heading text-2xl font-semibold tracking-tight">
+                {formatMoney(debts.totalPayable, currency, {
+                  hideDecimals: true,
+                })}
+              </p>
+            </div>
+            <Separator />
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between gap-2">
+                <dt className="text-muted-foreground">Prestações por mês</dt>
+                <dd className="tabular font-medium">
+                  {formatMoney(debts.monthlyInstalments, currency, {
+                    hideDecimals: true,
+                  })}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-muted-foreground">Próximo vencimento</dt>
+                <dd className="font-medium">
+                  {debts.next?.nextDueAt
+                    ? formatDate(debts.next.nextDueAt)
+                    : "—"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-muted-foreground">A receber</dt>
+                <dd className="tabular text-success font-medium">
+                  {formatMoney(debts.totalReceivable, currency, {
+                    hideDecimals: true,
+                  })}
+                </dd>
+              </div>
+            </dl>
           </CardContent>
         </Card>
       </div>

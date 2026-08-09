@@ -20,7 +20,9 @@ O que já existe:
 | Público         | `/`                                                                |
 | Autenticação    | `/auth/login`, `/register`, `/forgot-password`, `/verify-email`, `/accept-invite` |
 | Onboarding      | `/onboarding`                                                      |
-| Aplicação       | `/app`, `/app/accounts`, `/app/accounts/[id]`, `/app/transactions`, `/app/members`, `/app/notifications` |
+| Aplicação       | `/app`, `/app/accounts`, `/app/accounts/[id]`, `/app/income`, `/app/transactions` |
+| Planeamento     | `/app/goals`, `/app/wants`, `/app/debts`                           |
+| Espaço          | `/app/members`, `/app/notifications`                               |
 | Definições      | `/app/settings/{profile,security,preferences,space}`               |
 
 ## Stack
@@ -56,6 +58,13 @@ bun run build   # build de produção + verificação de tipos
 - A visibilidade de cada recurso (`PRIVATE`, `SPACE`, `CUSTOM`) é filtrada na
   camada de dados, não na UI. Os dados mock já seguem esta regra, para que a
   substituição pela Data Access Layer não mude os componentes.
+- **Previsão e realidade são coisas distintas.** `IncomeSource` diz o que se
+  espera receber, `Goal` o que se quer juntar e `Want` o que se gostava de ter;
+  só a `Transaction` associada mexe em saldos e agregados. Uma fonte pode estar
+  em atraso, ou um objetivo em risco, sem que nenhum saldo mude.
+- **Valores derivados não se guardam.** O saldo devedor de uma dívida vem do
+  plano de amortização e o poupado de um objetivo vem das contribuições. Se
+  fossem campos editáveis, deixariam de bater certo com o histórico.
 - Componentes de UI gerados pelo shadcn ficam em `src/components/ui/` e não
   devem ser editados sem motivo; o resto de `src/components/` é código do
   produto.
